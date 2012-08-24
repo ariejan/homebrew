@@ -1,65 +1,72 @@
 require 'formula'
 
-class GhostscriptFonts <Formula
-  url 'http://downloads.sourceforge.net/project/gs-fonts/gs-fonts/8.11%20%28base%2035%2C%20GPL%29/ghostscript-fonts-std-8.11.tar.gz'
+class GhostscriptFonts < Formula
   homepage 'http://sourceforge.net/projects/gs-fonts/'
-  md5 '6865682b095f8c4500c54b285ff05ef6'
+  url 'http://downloads.sourceforge.net/project/gs-fonts/gs-fonts/8.11%20%28base%2035%2C%20GPL%29/ghostscript-fonts-std-8.11.tar.gz'
+  sha1 '2a7198e8178b2e7dba87cb5794da515200b568f5'
 end
 
-class Ghostscript <Formula
-  url 'http://downloads.sourceforge.net/project/ghostscript/GPL%20Ghostscript/8.71/ghostscript-8.71.tar.gz'
+class Ghostscript < Formula
   homepage 'http://www.ghostscript.com/'
-  md5 '51a522a5b4818bd3dc7c1c0e9dd22bad'
+  url 'http://downloads.ghostscript.com/public/ghostscript-9.06.tar.gz'
+  sha1 'a3de8ccb877ee9b7437a598196eb6afa11bf31dc'
 
-  depends_on 'pkg-config'
+  head 'git://git.ghostscript.com/ghostpdl.git'
+
+  if ARGV.build_head?
+    depends_on :automake
+    depends_on :libtool
+  end
+
+  depends_on 'pkg-config' => :build
   depends_on 'jpeg'
   depends_on 'libtiff'
-
-  aka 'gs'
+  depends_on 'jbig2dec'
+  depends_on 'little-cms2'
+  depends_on :libpng
 
   def move_included_source_copies
     # If the install version of any of these doesn't match
     # the version included in ghostscript, we get errors
     # Taken from the MacPorts portfile - http://bit.ly/ghostscript-portfile
-    %w{ jpeg libpng zlib }.each do |lib|
+    renames = %w(jpeg libpng tiff zlib lcms2 jbig2dec)
+    renames << "freetype" if 10.7 <= MACOS_VERSION
+    renames.each do |lib|
       mv lib, "#{lib}_local"
     end
   end
 
   def install
-    ENV.libpng
     ENV.deparallelize
-    # O4 takes an ungodly amount of time
-    ENV.O3
     # ghostscript configure ignores LDFLAGs apparently
-    ENV['LIBS']="-L/usr/X11/lib"
+    ENV['LIBS'] = "-L#{MacOS::X11.lib}"
 
-    move_included_source_copies
+    src_dir = ARGV.build_head? ? "gs" : "."
 
-    system "./configure", "--prefix=#{prefix}", "--disable-debug",
-                          # the cups component adamantly installs to /usr so fuck it
-                          "--disable-cups",
-                          "--disable-compile-inits",
-                          "--disable-gtk"
+    cd src_dir do
+      move_included_source_copies
+      args = %W[
+        --prefix=#{prefix}
+        --disable-cups
+        --disable-compile-inits
+        --disable-gtk
+        --with-system-libtiff
+      ]
 
-    # versioned stuff in main tree is pointless for us
-    inreplace 'Makefile', '/$(GS_DOT_VERSION)', ''
-    system "make install"
+      if ARGV.build_head?
+        system './autogen.sh', *args
+      else
+        system './configure', *args
+      end
+      # versioned stuff in main tree is pointless for us
+      inreplace 'Makefile', '/$(GS_DOT_VERSION)', ''
+      system "make install"
+    end
 
     GhostscriptFonts.new.brew do
-      Dir.chdir '..'
-      (prefix+'share/ghostscript').install 'fonts'
+      (share+'ghostscript').install '../fonts'
     end
 
     (man+'de').rmtree
-  end
-
-  def caveats
-      <<-EOS.undent
-        There have been reports that installing Ghostscript can break printing on OS X:
-          http://github.com/mxcl/homebrew/issues/issue/528
-
-        If your printing doesn't break, please comment on the issue! Thanks.
-      EOS
   end
 end

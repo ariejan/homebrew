@@ -1,9 +1,9 @@
 require 'formula'
 
-class Exiv2 <Formula
-  url 'http://www.exiv2.org/exiv2-0.19.tar.gz'
+class Exiv2 < Formula
   homepage 'http://www.exiv2.org'
-  md5 'f52fb75a2cb7512f1484deab76473e13'
+  url 'http://www.exiv2.org/exiv2-0.23.tar.gz'
+  sha1 '5f342bf642477526f41add11d6ee7787cdcd639f'
 
   def install
     system "./configure", "--prefix=#{prefix}", "--disable-dependency-tracking"

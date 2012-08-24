@@ -1,32 +1,43 @@
 require 'formula'
 
-class Bazaar <Formula
-  url 'http://launchpadlibrarian.net/41811693/bzr-2.1.1.tar.gz'
-  md5 'ab6b5e0cc449b27abac2b4d717afe09d'
+class Bazaar < Formula
   homepage 'http://bazaar-vcs.org/'
-  
-  aka :bzr
+  url 'https://launchpad.net/bzr/2.5/2.5.1/+download/bzr-2.5.1.tar.gz'
+  md5 'ac5079858364a046071000d5cdccb67b'
+
+  option "system", "Install using the OS X system Python."
 
   def install
-    # Find the archs of the Python we are building against.
-    # If the python includes PPC support, then don't use Intel-
-    # specific compiler flags
-    archs = archs_for_command("python")
-    ENV.minimal_optimization if archs.include? :ppc64 or archs.include? :ppc7400
+    ENV.j1 # Builds aren't parallel-safe
 
-    # Make the manual before we install (mv) bzrlib
+    # Make and install man page first
     system "make man1/bzr.1"
-    man1.install gzip('man1/bzr.1')
+    man1.install "man1/bzr.1"
+
+    if build.include? "system"
+      ENV.prepend "PATH", "/System/Library/Frameworks/Python.framework/Versions/Current/bin", ":"
+    end
+
+    # Find the arch for the Python we are building against.
+    # We remove 'ppc' support, so we can pass Intel-optimized CFLAGS.
+    if build.include? "system"
+      python_cmd = "/usr/bin/python"
+    else
+      python_cmd = "python"
+    end
+
+    archs = archs_for_command(python_cmd)
+    archs.remove_ppc!
+    ENV['ARCHFLAGS'] = archs.as_arch_flags
 
     system "make"
-    libexec.install ['bzr', 'bzrlib']
+    inreplace "bzr", "#! /usr/bin/env python", "#!/usr/bin/python" if build.include? "system"
+    libexec.install 'bzr', 'bzrlib'
 
-    bin.mkpath
-    ln_s libexec+'bzr', bin+'bzr'
+    bin.install_symlink libexec+'bzr'
   end
 
-  def caveats
-    <<-EOS.undent
+  def caveats; <<-EOS.undent
     We've built a "standalone" version of bazaar and installed its libraries to:
       #{libexec}
 

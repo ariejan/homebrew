@@ -1,158 +1,171 @@
 require 'formula'
 
-<<-COMMENTS
+class TkCheck < Requirement
+  def message; <<-EOS.undent
+    Tk.framework was detected in /Library/Frameworks
+    This can cause Python builds to fail. See:
+      https://github.com/mxcl/homebrew/issues/11602
+    EOS
+  end
 
-This is the Homebrew formula for Python.
+  def fatal?; false; end
 
-Versions
---------
-This formula is currently tracking version 2.6.x.
-
-If you are looking for newer versions of Python, check out these forks:
-  2.7.x: http://github.com/mxcl/homebrew/issues/issue/1773
-  3.1.x: http://github.com/mxcl/homebrew/issues/issue/1188
-
-Options
--------
-There are a few options for customzing the build.
-  --universal: Builds combined 32-/64-bit Intel binaries.
-  --framework: Builds a "Framework" version of Python.
-  --static:    Builds static instead of shared libraries.
-
-site-packages
--------------
-The "site-packages" folder lives in the Cellar, under the "lib" folder
-for normal builds, and under the "Frameworks" folder for Framework builds.
-
-A .pth file is added to the Cellar site-packages that adds the corresponding
-HOMEBREW_PREFIX folder (/usr/local/lib/python2.6/site-packages by default)
-to sys.path. Note that this alternate folder doesn't itself support .pth files.
-
-pip / distribute
-----------------
-The pip (and distribute) formulae in Homebrew are designed only to work
-against a Homebrew-installed Python, though they provide links for
-manually installing against a custom Python.
-
-pip and distribute are installed directly into the Cellar site-packages,
-since they need to install to a place that supports .pth files.
-
-The pip & distribute formuale use the "site_packages" method defined here
-to get the appropriate site-packages path.
-
-COMMENTS
-
-
-# Was a Framework build requested?
-def build_framework?; ARGV.include? '--framework'; end
-
-# Are we installed or installing as a Framework?
-def as_framework?
-  (self.installed? and File.exists? prefix+"Frameworks/Python.framework") or build_framework?
+  def satisfied?
+    not File.exist? '/Library/Frameworks/Tk.framework'
+  end
 end
 
-class Python <Formula
-  url 'http://www.python.org/ftp/python/2.6.5/Python-2.6.5.tar.bz2'
+class Distribute < Formula
+  url 'http://pypi.python.org/packages/source/d/distribute/distribute-0.6.28.tar.gz'
+  sha1 '709bd97d46050d69865d4b588c7707768dfe6711'
+end
+
+class Pip < Formula
+  url 'http://pypi.python.org/packages/source/p/pip/pip-1.1.tar.gz'
+  md5 '62a9f08dd5dc69d76734568a6c040508'
+end
+
+class Python < Formula
   homepage 'http://www.python.org/'
-  md5 '6bef0417e71a1a1737ccf5750420fdb3'
+  url 'http://www.python.org/ftp/python/2.7.3/Python-2.7.3.tar.bz2'
+  sha1 '842c4e2aff3f016feea3c6e992c7fa96e49c9aa0'
 
-  depends_on 'sqlite' => :optional    # Prefer over OS X's older version
-  depends_on 'readline' => :optional  # Prefer over OS X's libedit
-  depends_on 'gdbm' => :optional
+  depends_on TkCheck.new
+  depends_on 'pkg-config' => :build
+  depends_on 'readline' => :recommended
+  depends_on 'sqlite' => :recommended
+  depends_on 'gdbm' => :recommended
+  depends_on :x11 # tk.h includes X11/Xlib.h and X11/X.h
 
-  def options
-    [
-      ["--framework", "Do a 'Framework' build instead of a UNIX-style build."],
-      ["--universal", "Build for both 32 & 64 bit Intel."],
-      ["--static", "Build static libraries."]
-    ]
-  end
+  option :universal
+  option 'quicktest', 'Run `make quicktest` after the build'
 
   # Skip binaries so modules will load; skip lib because it is mostly Python files
   skip_clean ['bin', 'lib']
 
+  def site_packages_cellar
+    prefix/"Frameworks/Python.framework/Versions/2.7/lib/python2.7/site-packages"
+  end
+
+  # The HOMEBREW_PREFIX location of site-packages.
   def site_packages
-    # The Cellar location of site-packages
-    if as_framework?
-      # If we're installed or installing as a Framework, then use that location.
-      return prefix+"Frameworks/Python.framework/Versions/2.6/lib/python2.6/site-packages"
-    else
-      # Otherwise, use just the lib path.
-      return lib+"python2.6/site-packages"
-    end
+    HOMEBREW_PREFIX/"lib/python2.7/site-packages"
   end
 
-  def prefix_site_packages
-    # The HOMEBREW_PREFIX location of site-packages
-    HOMEBREW_PREFIX+"lib/python2.6/site-packages"
+  # Where distribute/pip will install executable scripts.
+  def scripts_folder
+    HOMEBREW_PREFIX/"share/python"
   end
 
-  def validate_options
-    if build_framework? and ARGV.include? "--static"
-      onoe "Cannot specify both framework and static."
-      exit 99
-    end
+  def effective_lib
+    prefix/"Frameworks/Python.framework/Versions/2.7/lib"
   end
 
   def install
-    validate_options
+    args = %W[
+             --prefix=#{prefix}
+             --enable-ipv6
+             --datarootdir=#{share}
+             --datadir=#{share}
+             --enable-framework=#{prefix}/Frameworks
+           ]
 
-    args = ["--prefix=#{prefix}"]
+    args << '--without-gcc' if ENV.compiler == :clang
 
-    if ARGV.include? '--universal'
+    # Don't use optimizations other than "-Os" here, because Python's distutils
+    # remembers (hint: `python-config --cflags`) and reuses them for C
+    # extensions which can break software (such as scipy 0.11 fails when
+    # "-msse4" is present.)
+    ENV.minimal_optimization
+
+    # We need to enable warnings because the configure.in uses -Werror to detect
+    # "whether gcc supports ParseTuple" (https://github.com/mxcl/homebrew/issues/12194)
+    ENV.enable_warnings
+    if ENV.compiler == :clang
+      # http://docs.python.org/devguide/setup.html#id8 suggests to disable some Warnings.
+      ENV.append_to_cflags '-Wno-unused-value'
+      ENV.append_to_cflags '-Wno-empty-body'
+    end
+
+    if build.universal?
       args << "--enable-universalsdk=/" << "--with-universal-archs=intel"
     end
 
-    if build_framework?
-      args << "--enable-framework=#{prefix}/Frameworks"
-    else
-      args << "--enable-shared" unless ARGV.include? '--static'
-    end
+    # Allow sqlite3 module to load extensions:
+    # http://docs.python.org/library/sqlite3.html#f1
+    inreplace "setup.py", 'sqlite_defines.append(("SQLITE_OMIT_LOAD_EXTENSION", "1"))', ''
 
     system "./configure", *args
-    system "make"
-    ENV.j1 # Some kinds of installs must be serialized.
-    system "make install"
 
-    # Add the Homebrew prefix path to site-packages via a .pth
-    prefix_site_packages.mkpath
-    (site_packages+"homebrew.pth").write prefix_site_packages
+    # HAVE_POLL is "broken" on OS X
+    # See: http://trac.macports.org/ticket/18376
+    inreplace 'pyconfig.h', /.*?(HAVE_POLL[_A-Z]*).*/, '#undef \1'
+
+    system "make"
+    ENV.deparallelize # Installs must be serialized
+    # Tell Python not to install into /Applications (default for framework builds)
+    system "make", "install", "PYTHONAPPSDIR=#{prefix}"
+    # Demos and Tools into HOMEBREW_PREFIX/share/python
+    system "make", "frameworkinstallextras", "PYTHONAPPSDIR=#{share}/python"
+    system "make", "quicktest" if build.include? 'quicktest'
+
+    # Post-install, fix up the site-packages and install-scripts folders
+    # so that user-installed Python software survives minor updates, such
+    # as going from 2.7.0 to 2.7.1:
+
+    # Remove the site-packages that Python created in its Cellar.
+    site_packages_cellar.rmtree
+    # Create a site-packages in HOMEBREW_PREFIX/lib/python/site-packages
+    site_packages.mkpath
+    # Symlink the prefix site-packages into the cellar.
+    ln_s site_packages, site_packages_cellar
+
+    # Tell distutils-based installers where to put scripts
+    scripts_folder.mkpath
+    (effective_lib+"python2.7/distutils/distutils.cfg").write <<-EOF.undent
+      [install]
+      install-scripts=#{scripts_folder}
+    EOF
+
+    # Install distribute and pip
+    Distribute.new.brew { system "#{bin}/python", "setup.py", "install" }
+    Pip.new.brew { system "#{bin}/python", "setup.py", "install" }
   end
 
   def caveats
-    framework_caveats = <<-EOS.undent
-      Framework Python was installed to:
+    <<-EOS.undent
+      The Python framework is located at
         #{prefix}/Frameworks/Python.framework
 
-      You may want to symlink this Framework to a standard OS X location,
-      such as:
-        mkdir ~/Frameworks
-        ln -s "#{prefix}/Frameworks/Python.framework" ~/Frameworks
+      You can find the Python demo at
+        #{HOMEBREW_PREFIX}/share/python/Extras
 
-    EOS
+      You can `brew linkapps` to symlink "Idle" and the "Python Launcher".
 
-    site_caveats = <<-EOS.undent
-      The site-packages folder for this Python is:
+      A "distutils.cfg" has been written, specifying the install-scripts folder as:
+        #{scripts_folder}
+
+      If you install Python packages via "pip install x" or "python setup.py install"
+      (or the outdated easy_install), any provided scripts will go into the
+      install-scripts folder above, so you may want to add it to your PATH.
+
+      The site-package directory for brewed Python:
         #{site_packages}
 
-      We've added a "homebrew.pth" file to also include:
-        #{prefix_site_packages}
+      Distribute and Pip have been installed. To update them
+        #{scripts_folder}/pip install --upgrade distribute
+        #{scripts_folder}/pip install --upgrade pip
 
+      See: https://github.com/mxcl/homebrew/wiki/Homebrew-and-Python
     EOS
+  end
 
-    general_caveats = <<-EOS.undent
-      You may want to create a "virtual environment" using this Python as a base
-      so you can manage multiple independent site-packages. See:
-        http://pypi.python.org/pypi/virtualenv
-
-      If you install Python packages via pip, binaries will be installed under
-      Python's cellar but not automatically linked into the Homebrew prefix.
-      You may want to add Python's bin folder to your PATH as well:
-        #{bin}
-    EOS
-
-    s = site_caveats+general_caveats
-    s = framework_caveats + s if as_framework?
-    return s
+  def test
+    # Check if sqlite is ok, because we build with --enable-loadable-sqlite-extensions
+    # and it can occur that building sqlite silently fails if OSX's sqlite is used.
+    system "#{bin}/python", "-c", "import sqlite3"
+    # See: https://github.com/mxcl/homebrew/pull/10487
+    # Fixed [upstream](http://bugs.python.org/issue11149), but still nice to have.
+    `#{bin}/python -c 'from decimal import Decimal; print Decimal(4) / Decimal(2)'`.chomp == '2'
   end
 end

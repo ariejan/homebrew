@@ -1,32 +1,25 @@
 require 'formula'
 
 class Nginx < Formula
-  url 'http://nginx.org/download/nginx-0.7.67.tar.gz'
-  head 'http://nginx.org/download/nginx-0.8.43.tar.gz'
   homepage 'http://nginx.org/'
+  url 'http://nginx.org/download/nginx-1.2.3.tar.gz'
+  sha1 '98059ae08ebbfaaead868128f7b66ebce16be9af'
 
-  if ARGV.include? '--HEAD'
-    @md5='db13a36e5b6d1766e65d658eb1429803'
-  else
-    @md5='b6e175f969d03a4d3c5643aaabc6a5ff'
+  devel do
+    url 'http://nginx.org/download/nginx-1.3.5.tar.gz'
+    sha1 'ce0245295f23a54f10d916eb6b7b34469d0618a1'
   end
 
-  # Nginx sometimes needs to find PCRE in /usr/local/lib even though
-  # it links against the system library in /usr/lib. The upstream
-  # configure scripts really ought to be fixed.
-  depends_on 'pcre' if ARGV.flag? "--hack"
+  depends_on 'pcre'
+
+  option 'with-passenger', 'Compile with support for Phusion Passenger module'
+  option 'with-webdav', 'Compile with support for WebDAV module'
 
   skip_clean 'logs'
 
+  # Changes default port to 8080
   def patches
-    # Changes default port to 8080
     DATA
-  end
-
-  def options
-    [
-      ['--with-passenger', "Compile with support for Phusion Passenger module"]
-    ]
   end
 
   def passenger_config_args
@@ -43,22 +36,69 @@ class Nginx < Formula
   end
 
   def install
-    args = ["--prefix=#{prefix}", "--with-http_ssl_module", "--with-pcre"]
-    args << passenger_config_args if ARGV.include? '--with-passenger'
+    args = ["--prefix=#{prefix}",
+            "--with-http_ssl_module",
+            "--with-pcre",
+            "--with-ipv6",
+            "--with-cc-opt=-I#{HOMEBREW_PREFIX}/include",
+            "--with-ld-opt=-L#{HOMEBREW_PREFIX}/lib",
+            "--conf-path=#{etc}/nginx/nginx.conf",
+            "--pid-path=#{var}/run/nginx.pid",
+            "--lock-path=#{var}/nginx/nginx.lock"]
+
+    args << passenger_config_args if build.include? 'with-passenger'
+    args << "--with-http_dav_module" if build.include? 'with-webdav'
 
     system "./configure", *args
+    system "make"
     system "make install"
+    man8.install "objs/nginx.8"
+
+    plist_path.write startup_plist
+    plist_path.chmod 0644
   end
 
-  def caveats
-    <<-CAVEATS
-In the interest of allowing you to run `nginx` without `sudo`, the default
-port is set to localhost:8080.
+  def caveats; <<-EOS.undent
+    In the interest of allowing you to run `nginx` without `sudo`, the default
+    port is set to localhost:8080.
 
-If you want to host pages on your local machine to the public, you should
-change that to localhost:80, and run `sudo nginx`. You'll need to turn off
-any other web servers running port 80, of course.
-    CAVEATS
+    If you want to host pages on your local machine to the public, you should
+    change that to localhost:80, and run `sudo nginx`. You'll need to turn off
+    any other web servers running port 80, of course.
+
+    You can start nginx automatically on login running as your user with:
+      mkdir -p ~/Library/LaunchAgents
+      cp #{plist_path} ~/Library/LaunchAgents/
+      launchctl load -w ~/Library/LaunchAgents/#{plist_path.basename}
+
+    Though note that if running as your user, the launch agent will fail if you
+    try to use a port below 1024 (such as http's default of 80.)
+    EOS
+  end
+
+  def startup_plist
+    return <<-EOPLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>#{plist_name}</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <false/>
+    <key>UserName</key>
+    <string>#{`whoami`.chomp}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>#{HOMEBREW_PREFIX}/sbin/nginx</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>#{HOMEBREW_PREFIX}</string>
+  </dict>
+</plist>
+    EOPLIST
   end
 end
 

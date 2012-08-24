@@ -1,16 +1,20 @@
 require 'formula'
 
-class P7zip <Formula
-  @url='http://downloads.sourceforge.net/sourceforge/p7zip/p7zip_9.04_src_all.tar.bz2'
-  @homepage='http://p7zip.sourceforge.net/'
-  @md5='9194ebf9a2b3735d236aed001de5f6f8'
+class P7zip < Formula
+  url 'http://downloads.sourceforge.net/project/p7zip/p7zip/9.20.1/p7zip_9.20.1_src_all.tar.bz2'
+  homepage 'http://p7zip.sourceforge.net/'
+  md5 'bd6caaea567dc0d995c990c5cc883c89'
+
+  option '32-bit'
 
   def install
-    FileUtils.mv 'makefile.macosx_32bits', 'makefile.machine'
-    FileUtils.mv 'DOCS/copying.txt', 'COPYING'
-    system "make"
-    # we do our own install because theirs sucks
-    bin.install 'bin/7za'
-    man.install 'man1'
+    if Hardware.is_32_bit? or build.build_32_bit?
+      mv 'makefile.macosx_32bits', 'makefile.machine'
+    else
+      mv 'makefile.macosx_64bits', 'makefile.machine'
+    end
+
+    system "make", "all3", "CC=#{ENV.cc} $(ALLFLAGS)", "CXX=#{ENV.cxx} $(ALLFLAGS)"
+    system "make", "DEST_HOME=#{prefix}", "DEST_MAN=#{man}", "install"
   end
 end

@@ -1,12 +1,17 @@
 require 'formula'
 
-class Cppunit <Formula
-  url 'http://downloads.sourceforge.net/project/cppunit/cppunit/1.12.1/cppunit-1.12.1.tar.gz'
+class Cppunit < Formula
   homepage 'http://sourceforge.net/apps/mediawiki/cppunit/'
-  md5 'bd30e9cf5523cdfc019b94f5e1d7fd19'
+  url 'http://downloads.sourceforge.net/project/cppunit/cppunit/1.12.1/cppunit-1.12.1.tar.gz'
+  sha1 'f1ab8986af7a1ffa6760f4bacf5622924639bf4a'
+
+  option :universal
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    ENV.universal_binary if build.universal?
+
+    system "./configure", "--disable-debug", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}"
     system "make install"
   end
 end

@@ -1,9 +1,9 @@
 require 'formula'
 
 class Libmpc < Formula
-  url 'http://multiprecision.org/mpc/download/mpc-0.8.1.tar.gz'
   homepage 'http://multiprecision.org'
-  md5 '5b34aa804d514cc295414a963aedb6bf'
+  url 'http://multiprecision.org/mpc/download/mpc-1.0.tar.gz'
+  sha1 '20af7cc481433c019285a2c1757ac65e244e1e06'
 
   depends_on 'gmp'
   depends_on 'mpfr'
@@ -11,6 +11,7 @@ class Libmpc < Formula
   def install
     system "./configure", "--disable-dependency-tracking", "--prefix=#{prefix}"
     system "make"
+    system "make check"
     system "make install"
   end
 end

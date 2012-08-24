@@ -1,17 +1,29 @@
 require 'formula'
 
-class Aalib <Formula
-  url 'http://prdownloads.sourceforge.net/aa-project/aalib-1.4rc4.tar.gz'
+class Aalib < Formula
   homepage 'http://aa-project.sourceforge.net/aalib/'
+  url 'http://downloads.sourceforge.net/aa-project/aalib-1.4rc4.tar.gz'
   md5 'd5aa8e9eae07b7441298b5c30490f6a6'
 
+  depends_on :automake
+  depends_on :libtool
+  depends_on :x11
+
+  # Fix malloc/stdlib issue on OS X
   def patches
     DATA
   end
 
   def install
     ENV.ncurses_define
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    system 'autoreconf --force --install' # To fix X11 linker flags
+    system "./configure", "--disable-debug",
+                          "--disable-dependency-tracking",
+                          "--prefix=#{prefix}",
+                          "--mandir=#{man}",
+                          "--infodir=#{info}",
+                          "--enable-shared=yes",
+                          "--enable-static=yes"
     system "make install"
   end
 end

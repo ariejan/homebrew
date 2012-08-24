@@ -1,97 +1,93 @@
 require 'formula'
 
-class Boost <Formula
-  homepage 'http://www.boost.org'
-  url 'http://downloads.sourceforge.net/project/boost/boost/1.42.0/boost_1_42_0.tar.bz2'
-  md5 '7bf3b4eb841b62ffb0ade2b82218ebe6'
+def needs_universal_python?
+  build.universal? and not build.include? "without-python"
+end
 
-  def patches
-    { :p0 => DATA }
+class UniversalPython < Requirement
+  def message; <<-EOS.undent
+    A universal build was requested, but Python is not a universal build
+
+    Boost compiles against the Python it finds in the path; if this Python
+    is not a universal build then linking will likely fail.
+    EOS
   end
-
-  def install
-    fails_with_llvm "the standard llvm-gcc causes errors with dropped arugments "+
-                    "to functions when linking with the boost library"
-
-    # Not sure about this, but added since macports has it
-    mkdir 'libs/random/build'
-    open("libs/random/build/Jamfile.v2", "w") do |file|
-      file.write <<-EOF.gsub(/^\s+/, '')
-        # Copyright (c) 2006 Tiziano Mueller
-        #
-        # Use, modification and distribution of the file is subject to the
-        # Boost Software License, Version 1.0.
-        # (See at http://www.boost.org/LICENSE_1_0.txt)
-
-
-        project boost/random
-        	: source-location ../ ;
-
-        SOURCES = random_device ;
-
-        lib boost_random
-        	: $(SOURCES).cpp
-        	: <link>shared:<define>BOOST_RANDOM_DYN_LINK=1 ;
-      EOF
-    end
-
-    # Adjust the name the libs are installed under to include the path to the
-    # Homebrew lib directory.  It has the following effect:
-    #
-    # otool -L `which mkvmerge`
-    # /Users/cehoffman/.homebrew/bin/mkvmerge:
-    #   /Users/cehoffman/.homebrew/Cellar/libvorbis/1.2.3/lib/libvorbis.0.dylib (compatibility version 5.0.0, current version 5.3.0)
-    #   /Users/cehoffman/.homebrew/Cellar/libogg/1.1.4/lib/libogg.0.dylib (compatibility version 7.0.0, current version 7.0.0)
-    #   /usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.3)
-    #   /usr/lib/libbz2.1.0.dylib (compatibility version 1.0.0, current version 1.0.5)
-    #   /usr/lib/libexpat.1.dylib (compatibility version 7.0.0, current version 7.2.0)
-    #   /usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)
-    #   libboost_regex-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
-    #   libboost_filesystem-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
-    #   libboost_system-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
-    #   /usr/lib/libstdc++.6.dylib (compatibility version 7.0.0, current version 7.9.0)
-    #   /usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 125.0.0)
-    #
-    # becomes
-    #
-    # /Users/cehoffman/.homebrew/bin/mkvmerge:
-    #   /Users/cehoffman/.homebrew/Cellar/libvorbis/1.2.3/lib/libvorbis.0.dylib (compatibility version 5.0.0, current version 5.3.0)
-    #   /Users/cehoffman/.homebrew/Cellar/libogg/1.1.4/lib/libogg.0.dylib (compatibility version 7.0.0, current version 7.0.0)
-    #   /usr/lib/libz.1.dylib (compatibility version 1.0.0, current version 1.2.3)
-    #   /usr/lib/libbz2.1.0.dylib (compatibility version 1.0.0, current version 1.0.5)
-    #   /usr/lib/libexpat.1.dylib (compatibility version 7.0.0, current version 7.2.0)
-    #   /usr/lib/libiconv.2.dylib (compatibility version 7.0.0, current version 7.0.0)
-    #   /Users/cehoffman/.homebrew/lib/libboost_regex-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
-    #   /Users/cehoffman/.homebrew/lib/libboost_filesystem-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
-    #   /Users/cehoffman/.homebrew/lib/libboost_system-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
-    #   /usr/lib/libstdc++.6.dylib (compatibility version 7.0.0, current version 7.9.0)
-    #   /usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 125.0.0)
-    #
-    # Hence executables that link against the boost library will work when
-    # Homebrew is installed in a non standard location
-    inreplace 'tools/build/v2/tools/darwin.jam', '-install_name "', "-install_name \"#{`brew --prefix`.strip}/lib/"
-
-    # Force boost to compile using the GCC 4.2 compiler
-    open("user-config.jam", "a") do |file|
-      file.write "using darwin : : #{ENV['CXX']} ;\n"
-    end
-
-    # we specify libdir too because the script is apparently broken
-    system "./bootstrap.sh --prefix='#{prefix}' --libdir='#{lib}'"
-    system "./bjam -j#{Hardware.processor_count} --layout=tagged --prefix='#{prefix}' --libdir='#{lib}' --user-config=user-config.jam threading=multi install"
+  def satisfied?
+    archs_for_command("python").universal?
   end
 end
 
-__END__
-===================================================================
---- libs/random/random_device.cpp.orig	2009-06-11 15:27:21.000000000 +0200
-+++ libs/random/random_device.cpp	2009-06-11 15:28:01.000000000 +0200
-@@ -22,7 +22,7 @@
- #endif
+class Boost < Formula
+  homepage 'http://www.boost.org'
+  url 'http://downloads.sourceforge.net/project/boost/boost/1.50.0/boost_1_50_0.tar.bz2'
+  sha1 'ee06f89ed472cf369573f8acf9819fbc7173344e'
 
+  head 'http://svn.boost.org/svn/boost/trunk'
 
--#if defined(__linux__) || defined (__FreeBSD__)
-+#if defined(__linux__) || defined (__FreeBSD__) || defined(__APPLE__)
+  bottle do
+    sha1 '06c7e19ec8d684c35fb035e6326df6393e46dce2' => :mountainlion
+    sha1 '25ef1d7af5f6f9783313370fd8115902b24c5eeb' => :lion
+    sha1 '4508c9afcb14a15b6b3c7db4cdfb7bd3f8e1c9bc' => :snowleopard
+  end
 
- // the default is the unlimited capacity device, using some secure hash
- // try "/dev/random" for blocking when the entropy pool has drained
+  option :universal
+  option 'with-mpi', 'Enable MPI support'
+  option 'without-python', 'Build without Python'
+  option 'with-icu', 'Build regexp engine with icu support'
+
+  depends_on UniversalPython.new if needs_universal_python?
+  depends_on "icu4c" if build.include? "with-icu"
+
+  fails_with :llvm do
+    build 2335
+    cause "Dropped arguments to functions when linking with boost"
+  end
+
+  def install
+    # Adjust the name the libs are installed under to include the path to the
+    # Homebrew lib directory so executables will work when installed to a
+    # non-/usr/local location.
+    #
+    # otool -L `which mkvmerge`
+    # /usr/local/bin/mkvmerge:
+    #   libboost_regex-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
+    #   libboost_filesystem-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
+    #   libboost_system-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
+    #
+    # becomes:
+    #
+    # /usr/local/bin/mkvmerge:
+    #   /usr/local/lib/libboost_regex-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
+    #   /usr/local/lib/libboost_filesystem-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
+    #   /usr/local/libboost_system-mt.dylib (compatibility version 0.0.0, current version 0.0.0)
+    inreplace 'tools/build/v2/tools/darwin.jam', '-install_name "', "-install_name \"#{HOMEBREW_PREFIX}/lib/"
+
+    # Force boost to compile using the appropriate GCC version
+    open("user-config.jam", "a") do |file|
+      file.write "using darwin : : #{ENV.cxx} ;\n"
+      file.write "using mpi ;\n" if build.include? 'with-mpi'
+    end
+
+    # we specify libdir too because the script is apparently broken
+    bargs = ["--prefix=#{prefix}", "--libdir=#{lib}"]
+
+    if build.include? "with-icu"
+      icu4c_prefix = Formula.factory('icu4c').prefix
+      bargs << "--with-icu=#{icu4c_prefix}"
+    end
+
+    args = ["--prefix=#{prefix}",
+            "--libdir=#{lib}",
+            "-j#{ENV.make_jobs}",
+            "--layout=tagged",
+            "--user-config=user-config.jam",
+            "threading=multi",
+            "install"]
+
+    args << "address-model=32_64" << "architecture=x86" << "pch=off" if build.universal?
+    args << "--without-python" if build.include? "without-python"
+
+    system "./bootstrap.sh", *bargs
+    system "./bjam", *args
+  end
+end

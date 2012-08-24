@@ -1,15 +1,14 @@
 require 'formula'
 
-class ProtobufC <Formula
-  url 'http://protobuf-c.googlecode.com/files/protobuf-c-0.13.tar.gz'
+class ProtobufC < Formula
   homepage 'http://code.google.com/p/protobuf-c/'
-  sha1 '3144f260b736855cea2984731c2ba1647d40dfe0'
+  url 'http://protobuf-c.googlecode.com/files/protobuf-c-0.15.tar.gz'
+  sha1 '4fbd93f492c52154713de1951c0a2133ddd43abb'
 
   depends_on 'protobuf'
 
   def install
-    ENV.j1
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    system "./configure", "--disable-dependency-tracking", "--prefix=#{prefix}"
     system "make install"
   end
 end

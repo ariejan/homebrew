@@ -1,12 +1,16 @@
 require 'formula'
 
-class Libpng <Formula
-  url 'http://downloads.sourceforge.net/project/libpng/03-libpng-previous/1.2.43/libpng-1.2.43.tar.bz2'
+class Libpng < Formula
   homepage 'http://www.libpng.org/pub/png/libpng.html'
-  md5 '976909556e6613804d810405c1f72ce6'
+  url 'http://downloads.sf.net/project/libpng/libpng15/1.5.12/libpng-1.5.12.tar.gz'
+  sha1 'c329f3a9b720d7ae14e8205fa6e332236573704b'
 
-  def keg_only?
-    :provided_by_osx
+  keg_only :provided_pre_mountain_lion
+
+  bottle do
+    sha1 '83c6be83e86404f41982e5e1e6877924fe737bdf' => :mountainlion
+    sha1 '9a86cc5cec4cb19bd04c7c1e93595d96ebcde66f' => :lion
+    sha1 '3ba3f991b61afcaf0f369da89443738443d4effe' => :snowleopard
   end
 
   def install

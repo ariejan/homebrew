@@ -1,28 +1,37 @@
 require 'formula'
-require 'hardware'
 
-class Mongodb <Formula
+class Mongodb < Formula
   homepage 'http://www.mongodb.org/'
 
-  aka :mongo
+  if Hardware.is_64_bit? and not build.build_32_bit?
+    url 'http://fastdl.mongodb.org/osx/mongodb-osx-x86_64-2.0.7.tgz'
+    md5 '81b0e8be3206cc60e8031dde302fb983'
+    version '2.0.7-x86_64'
 
-  if Hardware.is_64_bit? and not ARGV.include? '--32bit'
-    url 'http://downloads.mongodb.org/osx/mongodb-osx-x86_64-1.4.4.tgz'
-    md5 '8791c484c1580d563f1a071e5eed9fa5'
-    version '1.4.4-x86_64'
+    devel do
+      url 'http://fastdl.mongodb.org/osx/mongodb-osx-x86_64-2.2.0-rc2.tgz'
+      md5 'a057c7987d7bc7ff6ced1b565a0856d1'
+      version '2.2.0-rc2-x86_64'
+    end
   else
-    url 'http://downloads.mongodb.org/osx/mongodb-osx-i386-1.4.4.tgz'
-    md5 '8e31cc8b8f4879812cad217ce5b49b20'
-    version '1.4.4-i386'
+    url 'http://fastdl.mongodb.org/osx/mongodb-osx-i386-2.0.7.tgz'
+    md5 '5fee3796ebc4e8721d9784ad8978b2b6'
+    version '2.0.7-i386'
+
+    devel do
+      url 'http://fastdl.mongodb.org/osx/mongodb-osx-i386-2.2.0-rc2.tgz'
+      md5 '5426d47cd2718814c07152b34d0ea18d'
+      version '2.2.0-rc2-i386'
+    end
   end
 
-  def skip_clean? path
-    true
-  end
+  option '32-bit'
+
+  skip_clean :all
 
   def install
     # Copy the prebuilt binaries to prefix
-    system "cp -prv * #{prefix}"
+    prefix.install Dir['*']
 
     # Create the data and log directories under /var
     (var+'mongodb').mkpath
@@ -30,32 +39,42 @@ class Mongodb <Formula
 
     # Write the configuration files and launchd script
     (prefix+'mongod.conf').write mongodb_conf
-    (prefix+'org.mongodb.mongod.plist').write startup_plist
+    plist_path.write startup_plist
+    plist_path.chmod 0644
+
+    # copy the config file to etc if this is the first install.
+    etc.install prefix+'mongod.conf' unless File.exists? etc+"mongod.conf"
   end
 
-  def caveats; <<-EOS
-If this is your first install, automatically load on login with:
-    cp #{prefix}/org.mongodb.mongod.plist ~/Library/LaunchAgents
-    launchctl load -w ~/Library/LaunchAgents/org.mongodb.mongod.plist
+  def caveats; <<-EOS.undent
+    If this is your first install, automatically load on login with:
+        mkdir -p ~/Library/LaunchAgents
+        cp #{plist_path} ~/Library/LaunchAgents/
+        launchctl load -w ~/Library/LaunchAgents/#{plist_path.basename}
 
-If this is an upgrade and you already have the org.mongodb.mongod.plist loaded:
-    launchctl unload -w ~/Library/LaunchAgents/org.mongodb.mongod.plist
-    cp #{prefix}/org.mongodb.mongod.plist ~/Library/LaunchAgents
-    launchctl load -w ~/Library/LaunchAgents/org.mongodb.mongod.plist
+    If this is an upgrade and you already have the #{plist_path.basename} loaded:
+        launchctl unload -w ~/Library/LaunchAgents/#{plist_path.basename}
+        cp #{plist_path} ~/Library/LaunchAgents/
+        launchctl load -w ~/Library/LaunchAgents/#{plist_path.basename}
 
-Or start it manually:
-    mongod run --config #{prefix}/mongod.conf
-EOS
+    Or start it manually:
+        mongod run --config #{etc}/mongod.conf
+
+    The launchctl plist above expects the config file to be at #{etc}/mongod.conf.
+    EOS
   end
 
-  def mongodb_conf
-    return <<-EOS
-# Store data in #{var}/mongodb instead of the default /data/db
-dbpath = #{var}/mongodb
+  def mongodb_conf; <<-EOS.undent
+    # Store data in #{var}/mongodb instead of the default /data/db
+    dbpath = #{var}/mongodb
 
-# Only accept local connections
-bind_ip = 127.0.0.1
-EOS
+    # Append logs to #{var}/log/mongodb/mongo.log
+    logpath = #{var}/log/mongodb/mongo.log
+    logappend = true
+
+    # Only accept local connections
+    bind_ip = 127.0.0.1
+    EOS
   end
 
   def startup_plist
@@ -65,18 +84,18 @@ EOS
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>org.mongodb.mongod</string>
+  <string>#{plist_name}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>#{bin}/mongod</string>
+    <string>#{HOMEBREW_PREFIX}/bin/mongod</string>
     <string>run</string>
     <string>--config</string>
-    <string>#{prefix}/mongod.conf</string>
+    <string>#{etc}/mongod.conf</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
-  <true/>
+  <false/>
   <key>UserName</key>
   <string>#{`whoami`.chomp}</string>
   <key>WorkingDirectory</key>

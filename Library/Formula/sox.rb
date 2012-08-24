@@ -1,22 +1,23 @@
 require 'formula'
 
-class Sox <Formula
-  url 'http://downloads.sourceforge.net/project/sox/sox/14.3.0/sox-14.3.0.tar.gz'
+class Sox < Formula
   homepage 'http://sox.sourceforge.net/'
-  md5 '8e3509804e6227273ef84092e1a2fea7'
+  url 'http://downloads.sourceforge.net/project/sox/sox/14.4.0/sox-14.4.0.tar.gz'
+  md5 'b0c15cff7a4ba0ec17fdc74e6a1f9cf1'
 
+  depends_on 'pkg-config' => :build
+  depends_on :libpng
+  depends_on 'mad'
   depends_on 'libvorbis' => :optional
+  depends_on 'flac' => :optional
+  depends_on 'libsndfile' => :optional
+  depends_on 'libao' => :optional
 
   def install
-    configure_args = [
-      "--prefix=#{prefix}",
-      "--disable-debug",
-      "--disable-dependency-tracking",
-    ]
-    # Linking error 'symbol not found' on 10.6 64-bit '"_gomp_thread_attr", referenced from:'
-    configure_args << "--disable-gomp"
-
-    system "./configure", *configure_args
+    system "./configure", "--disable-debug",
+                          "--disable-dependency-tracking",
+                          "--prefix=#{prefix}",
+                          "--disable-gomp"
     system "make install"
   end
 end

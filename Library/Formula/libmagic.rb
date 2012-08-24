@@ -1,18 +1,18 @@
 require 'formula'
 
 class Libmagic < Formula
-  url 'ftp://ftp.astron.com/pub/file/file-5.03.tar.gz'
   homepage 'http://www.darwinsys.com/file/'
-  md5 'd05f08a53e5c2f51f8ee6a4758c0cc53'
-
-  def keg_only?
-    "This brew provides 'libmagic', but also installs a 'file' command which shadows the OS X-provided one."
-  end
+  url 'ftp://ftp.astron.com/pub/file/file-5.11.tar.gz'
+  sha1 'df8ffe8759ec8cd85a98dc98e858563ea2555f64'
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
-    system "make"
-    ENV.j1 # Remove some warnings during install
+    system "./configure", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}",
+                          "--enable-fsect-man5"
     system "make install"
+
+    # Don't dupe this system utility
+    rm bin/"file"
+    rm man1/"file.1"
   end
 end

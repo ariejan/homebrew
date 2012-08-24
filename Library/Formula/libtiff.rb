@@ -1,12 +1,17 @@
 require 'formula'
 
-class Libtiff <Formula
-  url 'http://download.osgeo.org/libtiff/tiff-3.9.2.tar.gz'
+class Libtiff < Formula
   homepage 'http://www.remotesensing.org/libtiff/'
-  md5 '93e56e421679c591de7552db13384cb8'
+  url 'http://download.osgeo.org/libtiff/tiff-4.0.2.tar.gz'
+  sha256 'aa29f1f5bfe3f443c3eb4dac472ebde15adc8ff0464b83376f35e3b2fef935da'
+
+  option :universal
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--mandir=#{man}"
+    ENV.universal_binary if build.universal?
+    system "./configure", "--disable-dependency-tracking",
+                          "--without-x",
+                          "--prefix=#{prefix}"
     system "make install"
   end
 end

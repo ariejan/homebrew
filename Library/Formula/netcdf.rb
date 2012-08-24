@@ -1,50 +1,64 @@
 require 'formula'
 
-class Netcdf <Formula
-  url 'http://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-4.1.1.tar.gz'
-  homepage 'http://www.unidata.ucar.edu/software/netcdf/'
-  md5 '79c5ff14c80d5e18dd8f1fceeae1c8e1'
+class NetcdfCXX < Formula
+  homepage 'http://www.unidata.ucar.edu/software/netcdf'
+  url 'http://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-cxx4-4.2.tar.gz'
+  sha1 '59628c9f06c211a47517fc00d8b068da159ffa9d'
+end
+
+class NetcdfFortran < Formula
+  homepage 'http://www.unidata.ucar.edu/software/netcdf'
+  url 'http://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-fortran-4.2.tar.gz'
+  sha1 'f1887314455330f4057bc8eab432065f8f6f74ef'
+end
+
+class Netcdf < Formula
+  homepage 'http://www.unidata.ucar.edu/software/netcdf'
+  url 'http://www.unidata.ucar.edu/downloads/netcdf/ftp/netcdf-4.2.1.1.tar.gz'
+  sha1 '76631cb4e6b767c224338415cf6e5f5ff9bd1238'
 
   depends_on 'hdf5'
 
+  option 'enable-fortran', 'Compile Fortran Bindings'
+  option 'disable-cxx', "Don't compile C++ bindings"
+
   def install
-    # HDF5 is required to create and access files
-    # in the NetCDF version 4 format.
-    hdf5 = Formula.factory('hdf5')
+    if build.include? 'enable-fortran'
+      ENV.fortran
+      # fix for ifort not accepting the --force-load argument, causing
+      # the library libnetcdff.dylib to be missing all the f90 symbols.
+      # http://www.unidata.ucar.edu/software/netcdf/docs/known_problems.html#intel-fortran-macosx
+      # https://github.com/mxcl/homebrew/issues/13050
+      ENV['lt_cv_ld_force_load'] = 'no' if ENV['FC'] == 'ifort'
+    end
 
-    system "./configure", "--prefix=#{prefix}",
-                          "--disable-dependency-tracking",
-                          "--with-hdf5=#{hdf5.prefix}",
-                          "--enable-netcdf4",
-                          "--disable-fortran",  # Until issue 72 is resolved.
-                          "--enable-shared"
-    system "make install"
+    common_args = %W[
+      --disable-dependency-tracking
+      --prefix=#{prefix}
+      --enable-static
+      --enable-shared
+    ]
+
+    args = common_args.clone
+    args.concat %w[--enable-netcdf4 --disable-doxygen]
+
+    system './configure', *args
+    system 'make install'
+
+    # Add newly created installation to paths so that binding libraries can
+    # find the core libs.
+    ENV.prepend 'PATH', bin, ':'
+    ENV.prepend 'CPPFLAGS', "-I#{include}"
+    ENV.prepend 'LDFLAGS', "-L#{lib}"
+
+    NetcdfCXX.new.brew do
+      system './configure', *common_args
+      system 'make install'
+    end unless build.include? 'disable-cxx'
+
+    NetcdfFortran.new.brew do
+      system './configure', *common_args
+      system 'make install'
+    end if build.include? 'enable-fortran'
   end
-
-  def caveats
-    caveats = <<-EOS
-This brew of NetCDF does not include Fortran support.
-Fortran support will be added once the following issue
-is resolved:
-
-  http://github.com/mxcl/homebrew/issues/72
-
-If you have a Fortran compiler and would like to enable
-NetCDF support for Fortran compilers, execute:
-
-  brew edit netcdf
-
-Comment out the configure argument disabling Fortran
-and re-install.  You may have to set FCFLAGS and FFLAGS
-to be consistant with Homebrew's use of C compilers in
-order for the brew to install correctly.
-
-Be aware that the Homebrew project may not be able to
-provide support for any issues that arise during
-compilation when Fortran is enabled until a Fortran
-compiler is officially supported.
-    EOS
-    
-  end
-
 end

@@ -1,22 +1,28 @@
 require 'formula'
 
-class GitFlow <Formula
-  if ARGV.include? "--HEAD"
-    head 'git://github.com/nvie/gitflow.git', :branch => 'develop'
-  else
-    head 'git://github.com/nvie/gitflow.git', :tag => '0.2.1'
-    version '0.2.1'
-  end
+class GitFlowCompletion < Formula
+  homepage 'https://github.com/bobthecow/git-flow-completion'
+  url 'https://github.com/bobthecow/git-flow-completion/tarball/0.4.1.0'
+  md5 '95c05d1a278c1c41067bd7cc6c281ecd'
 
-  homepage 'http://github.com/nvie/gitflow'
+  head 'https://github.com/bobthecow/git-flow-completion.git', :branch => 'develop'
+end
 
-  # You need git to install, since we install from a git repo
-  # You also need git to run the scripts.
-  # But we're not going to mark it as a dependency just yet:
-  #   The user may have a non-brew git installed already.
-  # depends_on 'git'
+class GitFlow < Formula
+  homepage 'https://github.com/nvie/gitflow'
+
+  # Use the tag instead of the tarball to get submodules
+  url 'https://github.com/nvie/gitflow.git', :tag => '0.4.1'
+  version '0.4.1'
+
+  head 'https://github.com/nvie/gitflow.git', :branch => 'develop'
 
   def install
-    system "make",  "prefix=#{prefix}", "install"
+    system "make", "prefix=#{prefix}", "install"
+
+    GitFlowCompletion.new('git-flow-completion').brew do
+      (prefix+'etc/bash_completion.d').install "git-flow-completion.bash"
+      (share+'zsh/site-functions').install "git-flow-completion.zsh"
+    end
   end
 end

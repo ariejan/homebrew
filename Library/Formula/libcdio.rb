@@ -1,12 +1,15 @@
 require 'formula'
 
-class Libcdio <Formula
-  url 'http://ftp.gnu.org/gnu/libcdio/libcdio-0.81.tar.gz'
-  md5 '2ad1622b672ccf53a3444a0c55724d38'
+class Libcdio < Formula
   homepage 'http://www.gnu.org/software/libcdio/'
+  url 'http://ftpmirror.gnu.org/libcdio/libcdio-0.83.tar.gz'
+  mirror 'http://ftp.gnu.org/gnu/libcdio/libcdio-0.83.tar.gz'
+  sha1 '43f55972b23fd196d15fd6db17354a1d28e2bb24'
+
+  depends_on 'pkg-config' => :build
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    system "./configure", "--disable-dependency-tracking", "--prefix=#{prefix}"
     system "make install"
   end
 end

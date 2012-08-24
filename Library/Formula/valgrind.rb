@@ -1,20 +1,45 @@
 require 'formula'
 
-class Valgrind <Formula
-  url 'http://www.valgrind.org/downloads/valgrind-3.5.0.tar.bz2'
+class Valgrind < Formula
   homepage 'http://www.valgrind.org/'
-  md5 'f03522a4687cf76c676c9494fcc0a517'
+
+  # Valgrind 3.7.0 drops support for OS X 10.5
+  if MacOS.version >= 10.6
+    url 'http://valgrind.org/downloads/valgrind-3.8.0.tar.bz2'
+    sha1 '074b09e99b09634f1efa6f7f0f87c7a541fb9b0d'
+  else
+    url "http://valgrind.org/downloads/valgrind-3.6.1.tar.bz2"
+    md5 "2c3aa122498baecc9d69194057ca88f5"
+  end
+
+  head 'svn://svn.valgrind.org/valgrind/trunk'
+
+  if build.head?
+    depends_on :autoconf
+    depends_on :automake
+    depends_on :libtool
+  end
+
+  skip_clean 'lib'
 
   def install
-    opoo "Valgrind 3.5.0 doesn't support Snow Leopard; see caveats." if MACOS_VERSION > 10.5
-    system "./configure", "--prefix=#{prefix}", "--mandir=#{man}"
+    # avoid undefined symbol __bzero
+    ENV.remove_from_cflags "-mmacosx-version-min=#{MacOS.version}"
+
+    args = ["--prefix=#{prefix}", "--mandir=#{man}"]
+    if MacOS.prefer_64_bit?
+      args << "--enable-only64bit" << "--build=amd64-darwin"
+    else
+      args << "--enable-only32bit"
+    end
+
+    system "./autogen.sh" if build.head?
+    system "./configure", *args
+    system "make"
     system "make install"
   end
 
-  def caveats
-    if MACOS_VERSION > 10.5
-      "Valgrind does not work on Snow Leopard / 64-bit mode. See:\n"+
-      "    http://bugs.kde.org/show_bug.cgi?id=205241"
-    end
+  def test
+    system "#{bin}/valgrind", "ls", "-l"
   end
 end

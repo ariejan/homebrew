@@ -1,15 +1,15 @@
 require 'formula'
 
-class Taglib <Formula
-  @url='http://developer.kde.org/~wheeler/files/src/taglib-1.6.tar.gz'
-  @md5='5ecad0816e586a954bd676a86237d054'
-  @homepage='http://developer.kde.org/~wheeler/taglib.html'
+class Taglib < Formula
+  homepage 'http://taglib.github.com/'
+  url 'https://github.com/downloads/taglib/taglib/taglib-1.7.2.tar.gz'
+  sha1 'e657384ccf3284db2daba32dccece74534286012'
 
-  depends_on 'cmake'
+  depends_on 'cmake' => :build
 
   def install
-    system "./configure", "--enable-mp4", "--enable-asf",
-                          "--disable-debug", "--prefix=#{prefix}"
+    ENV.append 'CXXFLAGS', "-DNDEBUG=1"
+    system "cmake", "-DWITH_MP4=ON", "-DWITH_ASF=ON", *std_cmake_args
     system "make"
     system "make install"
   end

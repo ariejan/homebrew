@@ -1,17 +1,19 @@
 require 'formula'
 
-class Remind <Formula
-  url 'http://www.roaringpenguin.com/files/download/remind-03.01.07.tar.gz'
+class Remind < Formula
+  url 'http://www.roaringpenguin.com/files/download/remind-03.01.12.tar.gz'
   homepage 'http://www.roaringpenguin.com/products/remind'
-  md5 '9335189e78a11b78d848aeade30058d6'
+  md5 'de16cbfc3ee94defcb1abdf78b2ebcd1'
 
   def install
-      configure_args = [
-          "--prefix=#{prefix}",
-          "--disable-debug",
-          "--disable-dependency-tracking",
-      ]
-    system "./configure", *configure_args
+    # Remove unnecessary sleeps when running on Apple
+    inreplace "configure", "sleep 1", "true"
+    inreplace "src/init.c" do |s|
+      s.gsub! "sleep(5);", ""
+      s.gsub! /rkrphgvba\(.\);/, ""
+    end
+    system "./configure", "--disable-debug", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}"
     system "make install"
   end
 end

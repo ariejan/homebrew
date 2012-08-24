@@ -1,12 +1,15 @@
 require 'formula'
 
-class Bitlbee <Formula
-  url 'http://get.bitlbee.org/src/bitlbee-1.2.7.tar.gz'
+class Bitlbee < Formula
   homepage 'http://www.bitlbee.org/'
-  md5 '46cb8c0a930970cccd09dce4b3155cae'
+  url 'http://get.bitlbee.org/src/bitlbee-3.0.5.tar.gz'
+  md5 '9ff97260a2a7f3a7d102db158a8d9887'
+
+  option 'purple', "Use libpurple for all communication with instant messaging networks"
 
   depends_on 'glib'
   depends_on 'gnutls'
+  depends_on 'libpurple' if build.include? 'purple'
 
   def install
     # By default Homebrew will set ENV['LD'] to the same as ENV['CC'] which
@@ -16,17 +19,24 @@ class Bitlbee <Formula
     # magician will know).
     ENV['LD'] = '/usr/bin/ld'
 
-    # Homebrew should handlle the stripping.
-    # Should we use --config=/usr/local/var/lib/bitlbee/ ?
-    system "./configure", "--debug=0", "--strip=0", "--ssl=gnutls", "--pidfile=#{var}/bitlbee/run/bitlbee.pid", "--config=#{var}/bitlbee/lib/", "--ipsocket=#{var}/bitlbee/run/bitlbee.sock", "--prefix=#{prefix}"
+    args = ["--prefix=#{prefix}",
+            "--debug=0",
+            "--ssl=gnutls",
+            "--pidfile=#{var}/bitlbee/run/bitlbee.pid",
+            "--config=#{var}/bitlbee/lib/",
+            "--ipsocket=#{var}/bitlbee/run/bitlbee.sock"]
+
+    args << "--purple=1" if build.include? "purple"
+
+    system "./configure", *args
+
     # This build depends on make running first.
     system "make"
     system "make install"
     # This build has an extra step.
     system "make install-etc"
 
-    (var+"bitlbee").mkpath
-    (var+"bitlbee"+"run").mkpath
-    (var+"bitlbee"+"lib").mkpath
+    (var+"bitlbee/run").mkpath
+    (var+"bitlbee/lib").mkpath
   end
 end

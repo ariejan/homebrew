@@ -1,15 +1,18 @@
 require 'formula'
 
-class Enchant <Formula
-  url 'http://www.abisource.com/downloads/enchant/1.5.0/enchant-1.5.0.tar.gz'
+class Enchant < Formula
   homepage 'http://www.abisource.com/projects/enchant/'
-  md5 '7dfaed14e142b4a0004b770c9568ed02'
+  url 'http://www.abisource.com/downloads/enchant/1.6.0/enchant-1.6.0.tar.gz'
+  sha1 '321f9cf0abfa1937401676ce60976d8779c39536'
 
   depends_on 'glib'
-  depends_on 'aspell' => :optional
+  depends_on 'aspell'
 
   def install
-    system "./configure", "--prefix=#{prefix}", "--disable-debug", "--disable-dependency-tracking"
+    system "./configure", "--disable-dependency-tracking",
+                          "--prefix=#{prefix}",
+                          "--disable-ispell",
+                          "--disable-myspell"
     system "make install"
   end
 end

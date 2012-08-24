@@ -1,19 +1,16 @@
 require 'formula'
 
-class Qdbm <Formula
-  url 'http://qdbm.sourceforge.net/qdbm-1.8.77.tar.gz'
-  homepage 'http://qdbm.sourceforge.net/'
-  md5 '084e07824e231969356ec7cefac97985'
+class Qdbm < Formula
+  homepage 'http://fallabs.com/qdbm'
+  url 'http://fallabs.com/qdbm/qdbm-1.8.78.tar.gz'
+  sha1 '8c2ab938c2dad8067c29b0aa93efc6389f0e7076'
 
   def install
-    configure_args = [
-		"--prefix=#{prefix}",
-		"--disable-debug",
-		"--disable-dependency-tracking",
-		"--mandir=#{man}",
-    ]
-
-    system "./configure", *configure_args
+    system "./configure", "--disable-debug",
+                          "--prefix=#{prefix}",
+                          "--enable-bzip",
+                          "--enable-zlib",
+                          "--enable-iconv"
     system "make mac"
     system "make install-mac"
   end

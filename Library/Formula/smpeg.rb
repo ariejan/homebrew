@@ -1,9 +1,13 @@
 require 'formula'
 
-class Smpeg <Formula
-  head 'svn://svn.icculus.org/smpeg/trunk'
+class Smpeg < Formula
   homepage 'http://icculus.org/smpeg/'
-  
+  head 'svn://svn.icculus.org/smpeg/trunk'
+
+  depends_on :automake
+  depends_on :libtool
+
+  depends_on 'pkg-config' => :build
   depends_on 'sdl'
 
   def install
@@ -13,7 +17,8 @@ class Smpeg <Formula
                           "--disable-gtktest",
                           "--disable-sdltest"
     system "make"
-    lib.install Dir[".libs/*.dylib"]
-    bin.install ".libs/plaympeg"
+    # Install script is not +x by default for some reason
+    system "chmod +x ./install-sh"
+    system "make install"
   end
 end
